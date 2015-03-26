@@ -1,31 +1,68 @@
-var id_refresher = null;
+var ids_fetcher = (function()
+{
+	var id_refresher = null;
+	var interval = 10000;
+	var self = this;
 
-var ids_fetcher = function() {
-  var request = new XMLHttpRequest();
+	var getXmlHttp = function () {
+		var xmlhttp;
+		try {
+			xmlhttp = new ActiveXObject("MSXML2.XMLHTTP.6.0");
+		} catch (e) {
+			try {
+				xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+			} catch (E) {
+				xmlhttp = false;
+			}
+		}
+		if (!xmlhttp && typeof XMLHttpRequest !== 'undefined') {
+			xmlhttp = new XMLHttpRequest();
+		}
+		return xmlhttp;
+	}
 
-  request.onload = function() {
-    if (this.status != 200) {
-      return;
-    }
+	var onResponse = function(responseText)
+	{
+		var response_obj = JSON.parse(responseText);
+		console.log(response_obj.ids);
+		$('#debug_id').autocomplete({ source : response_obj.ids.map(String) });
 
-    var response_obj = JSON.parse(this.responseText);
-    console.log(response_obj.ids);
+		id_refresher = setTimeout(function(){load.call(self)}, interval);
+	}
 
-    $('#debug_id').autocomplete({ source : response_obj.ids.map(String) });
+	var load = function ()
+	{
+		var req = getXmlHttp();
+		req.open("GET", "http://" + $('#service_addr').val() + "/ids", true);
+		req.onreadystatechange = function () {
+			if (req.readyState === 4) {
+				if (req.status === 0 || req.status === 200) {
+					onResponse(req.responseText);
+					req = null;
+				}
+			}
+		};
 
-    stop_fetching();
+		try {
+			req.send(null);
+		} catch (e) {}
+	}
 
-    setInterval(ids_fetcher, 10000);
-  };
+	var stop = function()
+	{
+		clearTimeout(id_refresher);
+	}
 
-  request.open("GET", "http://" + $('#service_addr').val() + "/ids", true);
-  request.send();
-};
-
-var stop_fetching = function() {
-  if (id_refresher === null) {
-    return;
-  }
-
-  clearInterval(id_refresher);
-};
+	return function(isStop, user_interval)
+	{
+		if (isStop === true)
+		{
+			stop();
+		}
+		else
+		{
+			interval = user_interval || interval;
+			load();
+		}
+	}
+})()
