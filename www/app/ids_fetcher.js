@@ -55,7 +55,7 @@ var ids_fetcher = (function()
 
 	return function(isStop, user_interval)
 	{
-		if (isStop === true)
+		if (isStop === 'stop')
 		{
 			stop();
 		}
